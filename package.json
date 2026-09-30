@@ -1,0 +1,27 @@
+{
+  "name": "pi-llama-server-metrics",
+  "version": "1.0.0",
+  "description": "Live llama.cpp server metrics (throughput, speculative decoding, load) in the pi status bar",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "llama.cpp",
+    "llama-server",
+    "metrics",
+    "status-bar"
+  ],
+  "license": "MIT",
+  "author": "grigio",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/grigio/pi-llama-server-metrics.git"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}
