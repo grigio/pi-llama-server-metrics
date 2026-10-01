@@ -7,7 +7,7 @@ pi status bar: throughput, token counts, speculative-decoding acceptance, and lo
 ## Status bar output
 
 ```
-🐉 Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp 7.4 t/s 11.8k tok spec 52% ctx 22165
+🦙 Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp 7.4 t/s 11.8k tok spec 52% ctx 22165
 ```
 
 | Part      | Source metric(s)                                        | Meaning                              |
@@ -18,8 +18,8 @@ pi status bar: throughput, token counts, speculative-decoding acceptance, and lo
 | `ctx`     | `n_tokens_max`                                          | context tokens in use                |
 | `busy:N`  | `requests_processing` + `requests_deferred`             | requests currently in flight         |
 
-When no model is loaded the bar shows `🐉 no model loaded`; when the server is
-unreachable it shows `🐉 llama-server unreachable`.
+When no model is loaded the bar shows `🦙 no model loaded`; when the server is
+unreachable it shows `🦙 llama-server unreachable`.
 
 ## Requirements
 

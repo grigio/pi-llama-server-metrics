@@ -82,10 +82,10 @@ export default function llamaServerMetrics(pi: ExtensionAPI): void {
       const r = await poll();
       switch (r.kind) {
         case "down":
-          ctx.ui.setStatus(KEY, `🐉 ${ctx.ui.theme.fg("warning", "llama-server unreachable")}`);
+          ctx.ui.setStatus(KEY, `🦙 ${ctx.ui.theme.fg("warning", "llama-server unreachable")}`);
           break;
         case "idle":
-          ctx.ui.setStatus(KEY, `${ctx.ui.theme.fg("accent", "🐉")} ${ctx.ui.theme.fg("dim", "no model loaded")}`);
+          ctx.ui.setStatus(KEY, `${ctx.ui.theme.fg("accent", "🦙")} ${ctx.ui.theme.fg("dim", "no model loaded")}`);
           break;
         case "metrics": {
           const m = r.m;
@@ -106,13 +106,13 @@ export default function llamaServerMetrics(pi: ExtensionAPI): void {
 
           ctx.ui.setStatus(
             KEY,
-            [ctx.ui.theme.fg("accent", `🐉 ${r.model}`), ...parts].filter(Boolean).join(" "),
+            [ctx.ui.theme.fg("accent", `🦙 ${r.model}`), ...parts].filter(Boolean).join(" "),
           );
           break;
         }
       }
     } catch {
-      ctx.ui.setStatus(KEY, `🐉 ${ctx.ui.theme.fg("warning", "metrics error")}`);
+      ctx.ui.setStatus(KEY, `🦙 ${ctx.ui.theme.fg("warning", "metrics error")}`);
     } finally {
       busy = false;
     }
