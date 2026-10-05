@@ -21,6 +21,23 @@ pi status bar: throughput, token counts, speculative-decoding acceptance, and lo
 When no model is loaded the bar shows `🦙 no model loaded`; when the server is
 unreachable it shows `🦙 llama-server unreachable`.
 
+## Show / hide the metrics row
+
+Use the `/llama-metrics` command to show or hide that row:
+
+```text
+/llama-metrics          toggle (hide if shown, show if hidden)
+/llama-metrics show     show the row and start polling again
+/llama-metrics hide     hide the row and stop polling
+/llama-metrics status   report whether the row is shown or hidden
+/llama-metrics ?        completion lists the arguments
+```
+
+The choice is persisted to `<agent-dir>/llama-server-metrics.json`
+(`~/.pi/agent/llama-server-metrics.json` by default), so it survives restarts.
+Hiding the row also stops the polling requests; showing it polls immediately and
+resumes the interval.
+
 ## Requirements
 
 - A running `llama-server` with the `--metrics` flag (e.g. a preset server).
@@ -51,6 +68,7 @@ All options are environment variables, read when the extension loads:
 | `LLAMA_METRICS_URL`        | `http://127.0.0.1:8080` | llama-server base URL |
 | `LLAMA_METRICS_INTERVAL_MS`| `5000`              | poll interval            |
 | `LLAMA_METRICS_TIMEOUT_MS` | `3000`              | timeout per HTTP request |
+| `LLAMA_METRICS_VISIBLE`    | `1`                 | initial row visibility (`1`/`0`); a saved `/llama-metrics` choice wins |
 
 Example:
 

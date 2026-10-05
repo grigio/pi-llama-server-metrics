@@ -1,6 +1,6 @@
 {
   "name": "pi-llama-server-metrics",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Live llama.cpp server metrics (throughput, speculative decoding, load) in the pi status bar",
   "type": "module",
   "keywords": [

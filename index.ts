@@ -5,15 +5,48 @@
  * live throughput, speculative-decoding acceptance, and load in the pi
  * status bar.
  *
+ * Commands:
+ *   /llama-metrics [show|hide|toggle|status]  show or hide the metrics row
+ *   (no argument toggles; the choice is persisted across sessions)
+ *
  * Env vars:
  *   LLAMA_METRICS_URL          base URL        (default http://127.0.0.1:8080)
  *   LLAMA_METRICS_INTERVAL_MS  poll interval   (default 5000)
  *   LLAMA_METRICS_TIMEOUT_MS   fetch timeout   (default 3000)
+ *   LLAMA_METRICS_VISIBLE      initial visibility: 1/true or 0/false
+ *                              (default 1; a saved choice wins over this)
  */
 
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const KEY = "pi-llama-server-metrics";
+
+const AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
+const STATE_PATH = path.join(AGENT_DIR, "llama-server-metrics.json");
+const ENV_VISIBLE = !/^(0|false|no|off)$/i.test(process.env.LLAMA_METRICS_VISIBLE ?? "");
+
+/** Last saved choice wins; otherwise fall back to LLAMA_METRICS_VISIBLE. */
+const readVisible = (): boolean => {
+  try {
+    const v = (JSON.parse(fs.readFileSync(STATE_PATH, "utf8")) as { visible?: unknown }).visible;
+    if (typeof v === "boolean") return v;
+  } catch {
+    // no state file yet (or unreadable) -> use the env default below
+  }
+  return ENV_VISIBLE;
+};
+
+const writeVisible = (visible: boolean): void => {
+  try {
+    fs.writeFileSync(STATE_PATH, `${JSON.stringify({ visible }, null, 2)}\n`);
+  } catch (err) {
+    console.error("[pi-llama-server-metrics] failed to persist row visibility:", err);
+  }
+};
+
 const BASE = (process.env.LLAMA_METRICS_URL || "http://127.0.0.1:8080").replace(/\/+$/, "");
 const INTERVAL = Number(process.env.LLAMA_METRICS_INTERVAL_MS) || 5000;
 const TIMEOUT = Number(process.env.LLAMA_METRICS_TIMEOUT_MS) || 3000;
@@ -74,12 +107,47 @@ async function poll(): Promise<PollResult> {
 export default function llamaServerMetrics(pi: ExtensionAPI): void {
   let timer: ReturnType<typeof setInterval> | null = null;
   let busy = false;
+  let visible = readVisible();
+  let sessionCtx: ExtensionContext | null = null;
+
+  const stopTimer = (): void => {
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+
+  const startTimer = (ctx: ExtensionContext): void => {
+    if (timer) return;
+    timer = setInterval(() => {
+      void tick(ctx);
+    }, INTERVAL);
+  };
+
+  /** Apply the current visibility: poll when shown, stop polling when hidden. */
+  const applyVisibility = (): void => {
+    if (!visible) {
+      stopTimer();
+      sessionCtx?.ui.setStatus(KEY, undefined);
+      return;
+    }
+    if (sessionCtx) {
+      void tick(sessionCtx);
+      startTimer(sessionCtx);
+    }
+  };
 
   async function tick(ctx: ExtensionContext): Promise<void> {
+    if (!visible) return; // row hidden while a poll was pending
     if (busy) return; // previous poll still in flight
     busy = true;
     try {
       const r = await poll();
+      if (!visible) {
+        // hidden while this poll was in flight
+        ctx.ui.setStatus(KEY, undefined);
+        return;
+      }
       switch (r.kind) {
         case "down":
           ctx.ui.setStatus(KEY, `🦙 ${ctx.ui.theme.fg("warning", "llama-server unreachable")}`);
@@ -112,24 +180,66 @@ export default function llamaServerMetrics(pi: ExtensionAPI): void {
         }
       }
     } catch {
-      ctx.ui.setStatus(KEY, `🦙 ${ctx.ui.theme.fg("warning", "metrics error")}`);
+      if (visible) ctx.ui.setStatus(KEY, `🦙 ${ctx.ui.theme.fg("warning", "metrics error")}`);
     } finally {
       busy = false;
     }
   }
 
+  pi.registerCommand("llama-metrics", {
+    description: "Show or hide the llama-server metrics row in the status bar",
+    getArgumentCompletions: (prefix) => {
+      const opts = ["show", "hide", "toggle", "status"].filter((s) => s.startsWith(prefix));
+      return opts.length > 0 ? opts.map((s) => ({ value: s, label: s })) : null;
+    },
+    handler: async (args, ctx) => {
+      const arg = args.trim().toLowerCase();
+
+      if (arg === "status") {
+        ctx.ui.notify(`llama-server metrics row is ${visible ? "shown" : "hidden"}`, "info");
+        return;
+      }
+
+      let next: boolean;
+      switch (arg) {
+        case "":
+        case "toggle":
+          next = !visible;
+          break;
+        case "show":
+        case "on":
+          next = true;
+          break;
+        case "hide":
+        case "off":
+          next = false;
+          break;
+        default:
+          ctx.ui.notify("Usage: /llama-metrics [show|hide|toggle|status]", "warning");
+          return;
+      }
+
+      visible = next;
+      writeVisible(visible);
+      sessionCtx = ctx; // commands only run while a session is active
+      applyVisibility();
+      ctx.ui.notify(`llama-server metrics row ${visible ? "shown" : "hidden"}`, "info");
+    },
+  });
+
   pi.on("session_start", (_event, ctx) => {
-    void tick(ctx);
-    timer = setInterval(() => {
+    sessionCtx = ctx;
+    if (visible) {
       void tick(ctx);
-    }, INTERVAL);
+      startTimer(ctx);
+    } else {
+      ctx.ui.setStatus(KEY, undefined);
+    }
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
-    if (timer) {
-      clearInterval(timer);
-      timer = null;
-    }
+    stopTimer();
+    sessionCtx = null;
     ctx.ui.setStatus(KEY, undefined);
   });
 }
